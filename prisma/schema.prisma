@@ -1,0 +1,25 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model Product {
+  id          Int                  @id @default(autoincrement())
+  name        String               @unique
+  price       Int
+  description ProductDescription?
+
+  @@map("products")
+}
+
+model ProductDescription {
+  productId Int     @id
+  intro     String  @db.Text
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_descriptions")
+}
