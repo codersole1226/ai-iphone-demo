@@ -15,7 +15,14 @@ const client = new OpenAI({
         process.env.DASHSCOPE_BASE_URL ||
         "https://dashscope.aliyuncs.com/compatible-mode/v1",
 });
-
+function isFunctionToolCall(
+    tc: OpenAI.Chat.Completions.ChatCompletionMessageToolCall
+): tc is OpenAI.Chat.Completions.ChatCompletionMessageToolCall & {
+    function: { name: string; arguments?: string };
+} {
+    // 有些版本 toolCall 里可能有 type: "function"
+    return (tc as any)?.type === "function" && !!(tc as any)?.function?.name;
+}
 
 // 工具列表
 async function search_products(query: string): Promise<Product[]> {
@@ -103,9 +110,17 @@ export async function POST(req: Request) {
         }
 
         // 2) 执行工具
+        if (!isFunctionToolCall(toolCall)) {
+            return Response.json(
+                { answer: "工具调用类型不支持（不是 function tool call）" },
+                { status: 400 }
+            );
+        }
+
         const toolName = toolCall.function.name;
-        const args = toolCall.function.arguments ? JSON.parse(toolCall.function.arguments) : {};
-        console.log(args, '😋')
+        const args = toolCall.function.arguments
+            ? JSON.parse(toolCall.function.arguments)
+            : {};
         let toolResult: any;
         if (toolName === "search_products") {
             // 如果模型没给 query，就从用户文本里尽量提取（例如“查iphone”）
